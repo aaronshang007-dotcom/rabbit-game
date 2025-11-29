@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bunny Bomber (Single File)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bunny Bomber (Mobile & PC)</title>
     <style>
         :root {
-            --primary-color: #10b981; /* Emerald 500 */
-            --primary-dark: #047857; /* Emerald 700 */
+            --primary-color: #10b981;
+            --primary-dark: #047857;
             --bg-color: #1a1a1a;
             --panel-bg: #262626;
             --text-color: white;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
@@ -24,33 +24,43 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
-            overflow: hidden;
-            user-select: none;
+            overflow: hidden; /* Prevent scrolling */
+            touch-action: none; /* Disable default touch gestures */
+            user-select: none; /* Disable text selection */
+            -webkit-user-select: none;
         }
         
         h1 {
-            margin-bottom: 1rem;
+            margin: 0.5rem 0;
             color: var(--primary-color);
             text-transform: uppercase;
             letter-spacing: 2px;
-            font-size: 2rem;
+            font-size: 1.5rem;
             text-shadow: 2px 2px 0px #000;
+            z-index: 5;
         }
 
         #game-container {
             position: relative;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-            border: 8px solid var(--primary-dark);
+            border: 4px solid var(--primary-dark);
             border-radius: 8px;
             background-color: var(--panel-bg);
-            line-height: 0; /* Fix extra space under canvas */
+            line-height: 0;
+            max-width: 100%;
+            max-height: 80vh; /* Leave room for controls on mobile */
+            aspect-ratio: 15/13;
         }
 
         canvas {
             display: block;
-            background-color: #2E7D32; /* Darker grass color */
+            background-color: #2E7D32;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
+        /* UI Overlays */
         .overlay {
             position: absolute;
             top: 0;
@@ -63,31 +73,26 @@
             justify-content: center;
             background-color: rgba(0, 0, 0, 0.85);
             text-align: center;
-            z-index: 10;
+            z-index: 50;
             line-height: 1.5;
         }
 
-        .hidden {
-            display: none !important;
-        }
+        .hidden { display: none !important; }
 
-        .title-emoji {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-
+        .title-emoji { font-size: 3rem; margin-bottom: 0.5rem; }
+        
         .instructions {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: #ccc;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             background: rgba(255,255,255,0.1);
-            padding: 1rem;
+            padding: 0.5rem;
             border-radius: 8px;
-            max-width: 80%;
+            max-width: 90%;
         }
 
         .btn {
-            padding: 1rem 2.5rem;
+            padding: 0.8rem 2rem;
             font-size: 1.2rem;
             font-weight: bold;
             color: white;
@@ -96,28 +101,76 @@
             border-radius: 4px;
             cursor: pointer;
             box-shadow: 0 4px 0 var(--primary-dark);
-            transition: all 0.1s;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .btn-retry { background-color: #ef4444; box-shadow: 0 4px 0 #991b1b; }
+
+        /* Mobile Controls */
+        #controls-layer {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 140px;
+            display: none; /* Hidden by default on PC */
+            pointer-events: none; /* Let clicks pass through empty space */
+            padding: 0 20px;
+            box-sizing: border-box;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
         }
 
-        .btn:active {
-            transform: translateY(4px);
-            box-shadow: none;
+        /* Show controls on touch devices or small screens */
+        @media (hover: none) and (pointer: coarse), (max-width: 800px) {
+            #controls-layer { display: flex; }
         }
 
-        .btn:hover {
-            filter: brightness(1.1);
+        .dpad {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            pointer-events: auto; /* Re-enable pointer events for buttons */
         }
 
-        .btn-retry {
-            background-color: #ef4444; /* Red */
-            box-shadow: 0 4px 0 #991b1b;
+        .d-btn {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+        .d-btn:active, .d-btn.active { background: rgba(16, 185, 129, 0.6); }
+
+        .d-up { top: 0; left: 40px; border-radius: 8px 8px 0 0; }
+        .d-down { bottom: 0; left: 40px; border-radius: 0 0 8px 8px; }
+        .d-left { top: 40px; left: 0; border-radius: 8px 0 0 8px; }
+        .d-right { top: 40px; right: 0; border-radius: 0 8px 8px 0; }
+        .d-center { top: 40px; left: 40px; background: rgba(0,0,0,0.2); border: none; }
+
+        .action-btn {
+            width: 90px;
+            height: 90px;
+            background: rgba(239, 68, 68, 0.3); /* Red tint */
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: white;
+            user-select: none;
+        }
+        .action-btn:active, .action-btn.active {
+            background: rgba(239, 68, 68, 0.8);
+            transform: scale(0.95);
         }
 
-        .footer {
-            margin-top: 1rem;
-            color: #666;
-            font-size: 0.75rem;
-        }
+        .footer { display: none; } /* Hide footer on mobile to save space */
     </style>
 <script type="importmap">
 {
@@ -131,7 +184,7 @@
 </head>
 <body>
 
-    <!-- Hidden root for React compatibility if needed -->
+    <!-- Hidden root for React -->
     <div id="root" style="display:none;"></div>
 
     <h1>Bunny Bomber</h1>
@@ -139,47 +192,52 @@
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
         
-        <!-- Menu Screen -->
+        <!-- Menu -->
         <div id="menu-screen" class="overlay">
             <div class="title-emoji">🐰 vs 👻</div>
             <div class="instructions">
-                <p>⬆️⬇️⬅️➡️ Arrow Keys to Move</p>
-                <p>SPACE to Drop Bomb 💣</p>
-                <p>Destroy Walls 🧱 & Enemies 👻</p>
+                <p>Move: Arrows / D-Pad</p>
+                <p>Bomb: Space / Button</p>
             </div>
-            <button class="btn" onclick="startGame()">START GAME</button>
+            <button class="btn" onclick="startGame()">START</button>
         </div>
 
-        <!-- Game Over Screen -->
+        <!-- Game Over -->
         <div id="game-over-screen" class="overlay hidden">
-            <h2 style="color: #ef4444; font-size: 2.5rem; margin: 0 0 1rem 0;">GAME OVER</h2>
+            <h2 style="color: #ef4444; margin: 0 0 1rem 0;">GAME OVER</h2>
             <div class="title-emoji">💀</div>
-            <button class="btn btn-retry" onclick="startGame()">TRY AGAIN</button>
+            <button class="btn btn-retry" onclick="startGame()">RETRY</button>
         </div>
 
-        <!-- Victory Screen -->
+        <!-- Victory -->
         <div id="victory-screen" class="overlay hidden">
-            <h2 style="color: #fbbf24; font-size: 2.5rem; margin: 0 0 1rem 0;">VICTORY!</h2>
+            <h2 style="color: #fbbf24; margin: 0 0 1rem 0;">VICTORY!</h2>
             <div class="title-emoji">🏆</div>
-            <button class="btn" style="background-color: #fbbf24; color: black; box-shadow: 0 4px 0 #b45309;" onclick="startGame()">PLAY AGAIN</button>
+            <button class="btn" onclick="startGame()">AGAIN</button>
         </div>
     </div>
 
-    <div class="footer">
-        HTML5 Canvas + Vanilla JS | Single File Game
+    <!-- Virtual Controls (Visible on Mobile) -->
+    <div id="controls-layer">
+        <div class="dpad">
+            <div class="d-btn d-up" data-key="ArrowUp"></div>
+            <div class="d-btn d-left" data-key="ArrowLeft"></div>
+            <div class="d-btn d-center"></div>
+            <div class="d-btn d-right" data-key="ArrowRight"></div>
+            <div class="d-btn d-down" data-key="ArrowDown"></div>
+        </div>
+        <div class="action-btn" data-key="Space">💣</div>
     </div>
 
 <script>
     /**
-     * GAME CONFIGURATION & CONSTANTS
+     * CONFIG
      */
     const TILE_SIZE = 48;
-    const GRID_ROWS = 13; // Odd numbers work best for the checkerboard grid logic
+    const GRID_ROWS = 13;
     const GRID_COLS = 15;
     const CANVAS_WIDTH = GRID_COLS * TILE_SIZE;
     const CANVAS_HEIGHT = GRID_ROWS * TILE_SIZE;
-    
-    // Physical hitbox size (smaller than visual tile for easier movement)
     const HITBOX_SIZE = 30; 
 
     const EMOJIS = {
@@ -192,83 +250,95 @@
     };
 
     const COLORS = {
-        GRASS: '#2E7D32', // Deep Green (Classic Turf)
-        GRASS_CHECKER: 'rgba(0,0,0,0.15)', // Darker overlay for checkerboard
-        HARD_WALL_BG: '#333333', // Dark Grey for hard walls
-        SOFT_WALL_BG: '#D84315', // Burnt Orange for soft walls
+        GRASS: '#2E7D32',
+        GRASS_CHECKER: 'rgba(0,0,0,0.15)',
+        HARD_WALL_BG: '#333333',
+        SOFT_WALL_BG: '#D84315',
     };
 
-    const TileType = {
-        EMPTY: 0,
-        HARD_WALL: 1,
-        SOFT_WALL: 2
-    };
-
-    const GameStatus = {
-        MENU: 0,
-        PLAYING: 1,
-        WON: 2,
-        LOST: 3
-    };
+    const TileType = { EMPTY: 0, HARD_WALL: 1, SOFT_WALL: 2 };
+    const GameStatus = { MENU: 0, PLAYING: 1, WON: 2, LOST: 3 };
 
     /**
-     * GAME STATE
+     * STATE
      */
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
+    // Resolution is fixed, CSS handles scaling
     canvas.width = CANVAS_WIDTH;
     canvas.height = CANVAS_HEIGHT;
-    canvas.style.width = CANVAS_WIDTH + 'px';
-    canvas.style.height = CANVAS_HEIGHT + 'px';
 
     let gameStatus = GameStatus.MENU;
-    let map = createEmptyMap(); 
+    let map = [];
     let bombs = [];
     let explosions = [];
     let enemies = [];
-    let player = { x: TILE_SIZE*1.5, y: TILE_SIZE*1.5, alive: true };
+    let player = {};
     let lastTime = 0;
-    let keys = {};
-
-    // Input Handling
-    window.addEventListener('keydown', e => {
-        if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', ' '].includes(e.key)) {
-            e.preventDefault();
-        }
-        keys[e.code] = true;
-    });
-    window.addEventListener('keyup', e => keys[e.code] = false);
+    
+    // Input State (Unified)
+    const inputs = {
+        ArrowUp: false,
+        ArrowDown: false,
+        ArrowLeft: false,
+        ArrowRight: false,
+        Space: false
+    };
 
     /**
-     * UTILS
+     * INPUT HANDLING (Keyboard + Touch)
      */
-    // AABB Collision (Rectangle Intersection)
+    const updateInput = (key, active) => {
+        if (inputs.hasOwnProperty(key)) {
+            inputs[key] = active;
+        }
+    };
+
+    // Keyboard
+    window.addEventListener('keydown', e => {
+        if(inputs.hasOwnProperty(e.code)) e.preventDefault();
+        updateInput(e.code, true);
+    });
+    window.addEventListener('keyup', e => updateInput(e.code, false));
+
+    // Touch / Virtual Controls
+    const setupTouchControls = () => {
+        const btns = document.querySelectorAll('.d-btn, .action-btn');
+        btns.forEach(btn => {
+            const key = btn.dataset.key;
+            if (!key) return;
+
+            // Handle both touch and mouse for testing on PC
+            const start = (e) => {
+                e.preventDefault();
+                updateInput(key, true);
+                btn.classList.add('active');
+            };
+            const end = (e) => {
+                e.preventDefault();
+                updateInput(key, false);
+                btn.classList.remove('active');
+            };
+
+            btn.addEventListener('touchstart', start, {passive: false});
+            btn.addEventListener('touchend', end, {passive: false});
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('mouseup', end);
+            btn.addEventListener('mouseleave', end);
+        });
+    };
+    setupTouchControls();
+
+    /**
+     * GAME LOGIC
+     */
     function rectIntersect(r1, r2) {
-        return !(r2.x >= r1.x + r1.w || 
-                 r2.x + r2.w <= r1.x || 
-                 r2.y >= r1.y + r1.h || 
-                 r2.y + r2.h <= r1.y);
+        return !(r2.x >= r1.x + r1.w || r2.x + r2.w <= r1.x || r2.y >= r1.y + r1.h || r2.y + r2.h <= r1.y);
     }
 
     function getGridPos(x, y) {
         return { c: Math.floor(x / TILE_SIZE), r: Math.floor(y / TILE_SIZE) };
-    }
-
-    function createEmptyMap() {
-        const newMap = [];
-        for (let r = 0; r < GRID_ROWS; r++) {
-            const row = [];
-            for (let c = 0; c < GRID_COLS; c++) {
-                if (r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1 || (r % 2 === 0 && c % 2 === 0)) {
-                    row.push(TileType.HARD_WALL);
-                } else {
-                    row.push(TileType.EMPTY);
-                }
-            }
-            newMap.push(row);
-        }
-        return newMap;
     }
 
     function initGameMap() {
@@ -279,8 +349,9 @@
                 if (r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1 || (r % 2 === 0 && c % 2 === 0)) {
                     row.push(TileType.HARD_WALL);
                 } else {
-                    const isSafeZone = (r <= 2 && c <= 2);
-                    if (!isSafeZone && Math.random() < 0.35) {
+                    // Safe zone around top-left
+                    const isSafe = (r < 3 && c < 3);
+                    if (!isSafe && Math.random() < 0.35) {
                         row.push(TileType.SOFT_WALL);
                     } else {
                         row.push(TileType.EMPTY);
@@ -292,247 +363,182 @@
         return newMap;
     }
 
-    function spawnEnemies(count, currentMap) {
-        const newEnemies = [];
-        let attempts = 0;
-        while (newEnemies.length < count && attempts < 200) {
-            attempts++;
-            const r = Math.floor(Math.random() * (GRID_ROWS - 2)) + 1;
-            const c = Math.floor(Math.random() * (GRID_COLS - 2)) + 1;
-            
-            if (currentMap[r][c] === TileType.EMPTY && (r > 4 || c > 4)) {
-                newEnemies.push({
-                    x: c * TILE_SIZE + TILE_SIZE/2,
-                    y: r * TILE_SIZE + TILE_SIZE/2,
-                    width: HITBOX_SIZE,
-                    height: HITBOX_SIZE,
-                    speed: 2,
-                    dir: {x: 1, y: 0},
-                    dirTimer: 0
-                });
-            }
-        }
-        return newEnemies;
-    }
-
     function startGame() {
         map = initGameMap();
         bombs = [];
         explosions = [];
+        enemies = [];
         
         player = {
             x: TILE_SIZE * 1.5,
             y: TILE_SIZE * 1.5,
             width: HITBOX_SIZE,
             height: HITBOX_SIZE,
-            speed: 3.5, // Slightly faster for responsiveness
+            speed: 4, 
             bombCount: 0,
             maxBombs: 3,
             blastRadius: 2,
             alive: true
         };
 
-        enemies = spawnEnemies(4, map);
+        // Spawn Enemies
+        let count = 4;
+        while(count > 0) {
+            const r = Math.floor(Math.random() * (GRID_ROWS - 2)) + 1;
+            const c = Math.floor(Math.random() * (GRID_COLS - 2)) + 1;
+            if(map[r][c] === TileType.EMPTY && (r > 4 || c > 4)) {
+                enemies.push({
+                    x: c * TILE_SIZE + TILE_SIZE/2,
+                    y: r * TILE_SIZE + TILE_SIZE/2,
+                    width: HITBOX_SIZE, 
+                    height: HITBOX_SIZE,
+                    speed: 2,
+                    dir: {x: 1, y: 0}
+                });
+                count--;
+            }
+        }
+
         gameStatus = GameStatus.PLAYING;
-        
-        document.getElementById('menu-screen').classList.add('hidden');
-        document.getElementById('game-over-screen').classList.add('hidden');
-        document.getElementById('victory-screen').classList.add('hidden');
-        
-        canvas.focus();
+        document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
     }
 
-    /**
-     * PHYSICS CORE
-     */
-    
-    // Check if the proposed position (x,y) collides with walls or bombs.
-    // currentX/currentY is used to check if we are ALREADY inside a bomb (pass-through logic).
     function isCollision(targetX, targetY, w, h, currentX, currentY) {
-        // Player Bounding Box
         const pRect = { x: targetX - w/2, y: targetY - h/2, w: w, h: h };
         const curRect = { x: currentX - w/2, y: currentY - h/2, w: w, h: h };
 
-        // 1. Map Walls Check (Check all tiles the hitbox touches)
-        const leftCol = Math.floor(pRect.x / TILE_SIZE);
-        const rightCol = Math.floor((pRect.x + pRect.w - 0.01) / TILE_SIZE);
-        const topRow = Math.floor(pRect.y / TILE_SIZE);
-        const bottomRow = Math.floor((pRect.y + pRect.h - 0.01) / TILE_SIZE);
+        // 1. Walls
+        const left = Math.floor(pRect.x / TILE_SIZE);
+        const right = Math.floor((pRect.x + pRect.w - 0.01) / TILE_SIZE);
+        const top = Math.floor(pRect.y / TILE_SIZE);
+        const bottom = Math.floor((pRect.y + pRect.h - 0.01) / TILE_SIZE);
 
-        for (let r = topRow; r <= bottomRow; r++) {
-            for (let c = leftCol; c <= rightCol; c++) {
-                if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return true; // World bounds
-                if (map[r][c] !== TileType.EMPTY) return true; // Walls
+        for (let r = top; r <= bottom; r++) {
+            for (let c = left; c <= right; c++) {
+                if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return true;
+                if (map[r][c] !== TileType.EMPTY) return true;
             }
         }
 
-        // 2. Bomb Check
+        // 2. Bombs
         for (const b of bombs) {
-            // Bomb is full tile size for collision purposes
             const bRect = { x: b.x - TILE_SIZE/2, y: b.y - TILE_SIZE/2, w: TILE_SIZE, h: TILE_SIZE };
-            
             if (rectIntersect(pRect, bRect)) {
-                // We hit a bomb.
-                // KEY FIX: If we were *already* intersecting this bomb in the current frame, ignore collision.
-                // This allows walking out of a just-placed bomb.
-                if (rectIntersect(curRect, bRect)) {
-                    continue; // Allowed pass-through
-                }
-                return true; // Solid collision
+                // Pass through if we are currently inside it
+                if (rectIntersect(curRect, bRect)) continue;
+                return true;
             }
         }
-
         return false;
     }
 
     function update(dt) {
         if (gameStatus !== GameStatus.PLAYING) return;
 
-        // --- Player Movement with Corner Sliding ---
-        const moveSpeed = player.speed;
-        let dx = 0;
-        let dy = 0;
+        // Player Move
+        let dx = 0, dy = 0;
+        if (inputs.ArrowUp) dy -= player.speed;
+        if (inputs.ArrowDown) dy += player.speed;
+        if (inputs.ArrowLeft) dx -= player.speed;
+        if (inputs.ArrowRight) dx += player.speed;
 
-        if (keys['ArrowUp']) dy -= moveSpeed;
-        if (keys['ArrowDown']) dy += moveSpeed;
-        if (keys['ArrowLeft']) dx -= moveSpeed;
-        if (keys['ArrowRight']) dx += moveSpeed;
-
-        // Don't move diagonally at full speed (optional, but good for grid)
         if (dx !== 0 && dy !== 0) {
-            // For classic feel, usually one axis wins or we normalize.
-            // Let's prevent diagonal movement inputs for cleaner grid navigation
-            // or just prioritize the last key press. For simplicity:
-            // Let's normalize speed.
             const len = Math.hypot(dx, dy);
-            dx = (dx / len) * moveSpeed;
-            dy = (dy / len) * moveSpeed;
+            dx = (dx / len) * player.speed;
+            dy = (dy / len) * player.speed;
         }
 
-        // Apply movement axis by axis for sliding
-        
-        // --- X Axis ---
+        // Move X with Corner Slide
         if (dx !== 0) {
             const nextX = player.x + dx;
             if (!isCollision(nextX, player.y, player.width, player.height, player.x, player.y)) {
                 player.x = nextX;
             } else {
-                // Corner Slide Logic for X
-                // We hit a wall moving horizontally. Check if we can slide UP or DOWN.
+                // Slide
                 const gridY = Math.floor(player.y / TILE_SIZE);
                 const centerY = gridY * TILE_SIZE + TILE_SIZE / 2;
                 const offset = player.y - centerY;
-                
-                // Threshold: If we are within 16px of the center, try to snap
-                const SNAP_THRESHOLD = 20; 
-
-                if (Math.abs(offset) < SNAP_THRESHOLD) {
-                    // We are slightly misaligned. 
-                    // If we are below center (offset > 0), try moving UP to align.
+                if (Math.abs(offset) < 20) {
                     if (offset > 0) {
-                        if (!isCollision(nextX, player.y - moveSpeed, player.width, player.height, player.x, player.y)) {
-                            player.y -= moveSpeed; // Slide Up
-                        }
-                    } 
-                    // If we are above center (offset < 0), try moving DOWN.
-                    else if (offset < 0) {
-                        if (!isCollision(nextX, player.y + moveSpeed, player.width, player.height, player.x, player.y)) {
-                            player.y += moveSpeed; // Slide Down
-                        }
+                        if (!isCollision(nextX, player.y - player.speed, player.width, player.height, player.x, player.y)) player.y -= player.speed;
+                    } else {
+                         if (!isCollision(nextX, player.y + player.speed, player.width, player.height, player.x, player.y)) player.y += player.speed;
                     }
                 }
             }
         }
 
-        // --- Y Axis ---
+        // Move Y with Corner Slide
         if (dy !== 0) {
             const nextY = player.y + dy;
             if (!isCollision(player.x, nextY, player.width, player.height, player.x, player.y)) {
                 player.y = nextY;
             } else {
-                // Corner Slide Logic for Y
-                // We hit a wall moving vertically. Check if we can slide LEFT or RIGHT.
+                // Slide
                 const gridX = Math.floor(player.x / TILE_SIZE);
                 const centerX = gridX * TILE_SIZE + TILE_SIZE / 2;
                 const offset = player.x - centerX;
-                const SNAP_THRESHOLD = 20;
-
-                if (Math.abs(offset) < SNAP_THRESHOLD) {
-                    if (offset > 0) { // We are to the right, try slide LEFT
-                         if (!isCollision(player.x - moveSpeed, nextY, player.width, player.height, player.x, player.y)) {
-                            player.x -= moveSpeed;
-                        }
-                    } else if (offset < 0) { // We are to the left, try slide RIGHT
-                        if (!isCollision(player.x + moveSpeed, nextY, player.width, player.height, player.x, player.y)) {
-                            player.x += moveSpeed;
-                        }
+                if (Math.abs(offset) < 20) {
+                    if (offset > 0) {
+                        if (!isCollision(player.x - player.speed, nextY, player.width, player.height, player.x, player.y)) player.x -= player.speed;
+                    } else {
+                        if (!isCollision(player.x + player.speed, nextY, player.width, player.height, player.x, player.y)) player.x += player.speed;
                     }
                 }
             }
         }
-        
-        // --- Bomb Placement ---
-        if (keys['Space'] || keys['CodeSpace']) {
+
+        // Bomb
+        if (inputs.Space) {
             placeBomb();
-            keys['Space'] = false; 
-            keys['CodeSpace'] = false;
+            inputs.Space = false; // Trigger once
         }
 
-        // --- Bomb Timer ---
+        // Update Bombs
         for (let i = bombs.length - 1; i >= 0; i--) {
             bombs[i].timer -= dt;
             if (bombs[i].timer <= 0) explodeBomb(i);
         }
 
-        // --- Explosion Logic ---
+        // Update Explosions
         for (let i = explosions.length - 1; i >= 0; i--) {
-            const exp = explosions[i];
-            exp.timer -= dt;
-            if (exp.timer <= 0) {
+            explosions[i].timer -= dt;
+            if (explosions[i].timer <= 0) {
                 explosions.splice(i, 1);
                 continue;
             }
-            // Damage Check
-            exp.particles.forEach(p => {
-                // Check Player center
-                const pGrid = getGridPos(player.x, player.y);
-                if (pGrid.c === p.c && pGrid.r === p.r) {
+            // Damage
+            explosions[i].particles.forEach(p => {
+                const pg = getGridPos(player.x, player.y);
+                if (pg.c === p.c && pg.r === p.r) {
                     player.alive = false;
                     gameStatus = GameStatus.LOST;
                     document.getElementById('game-over-screen').classList.remove('hidden');
                 }
-                // Check Enemies
                 for (let j = enemies.length - 1; j >= 0; j--) {
-                    const eGrid = getGridPos(enemies[j].x, enemies[j].y);
-                    if (eGrid.c === p.c && eGrid.r === p.r) {
-                        enemies.splice(j, 1);
-                    }
+                    const eg = getGridPos(enemies[j].x, enemies[j].y);
+                    if (eg.c === p.c && eg.r === p.r) enemies.splice(j, 1);
                 }
             });
         }
 
-        // --- Enemy Logic ---
-        enemies.forEach(enemy => {
-            const nextX = enemy.x + enemy.dir.x * enemy.speed;
-            const nextY = enemy.y + enemy.dir.y * enemy.speed;
-            
-            // Basic collision for enemy (no sliding needed)
-            if (isCollision(nextX, nextY, enemy.width, enemy.height, enemy.x, enemy.y)) {
-                const dirs = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
-                enemy.dir = dirs[Math.floor(Math.random() * 4)];
+        // Update Enemies
+        enemies.forEach(e => {
+            let nx = e.x + e.dir.x * e.speed;
+            let ny = e.y + e.dir.y * e.speed;
+            if (isCollision(nx, ny, e.width, e.height, e.x, e.y)) {
+                const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+                e.dir = dirs[Math.floor(Math.random()*4)];
             } else {
-                enemy.x = nextX;
-                enemy.y = nextY;
+                e.x = nx;
+                e.y = ny;
             }
-            
-            if (Math.random() < 0.01) {
-                 const dirs = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
-                 enemy.dir = dirs[Math.floor(Math.random() * 4)];
+            if (Math.random() < 0.02) {
+                const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+                e.dir = dirs[Math.floor(Math.random()*4)];
             }
-
-            // Kill Player
-            const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
-            if (dist < TILE_SIZE * 0.7) {
+            // Hit Player
+            if (Math.hypot(e.x - player.x, e.y - player.y) < TILE_SIZE * 0.7) {
                 player.alive = false;
                 gameStatus = GameStatus.LOST;
                 document.getElementById('game-over-screen').classList.remove('hidden');
@@ -547,162 +553,139 @@
 
     function placeBomb() {
         if (player.bombCount >= player.maxBombs) return;
+        const g = getGridPos(player.x, player.y);
+        const bx = g.c * TILE_SIZE + TILE_SIZE/2;
+        const by = g.r * TILE_SIZE + TILE_SIZE/2;
         
-        const grid = getGridPos(player.x, player.y);
-        const bx = grid.c * TILE_SIZE + TILE_SIZE/2;
-        const by = grid.r * TILE_SIZE + TILE_SIZE/2;
-
-        if (bombs.some(b => {
+        if (!bombs.some(b => {
             const bg = getGridPos(b.x, b.y);
-            return bg.c === grid.c && bg.r === grid.r;
-        })) return;
-
-        bombs.push({
-            x: bx,
-            y: by,
-            timer: 3000,
-            range: player.blastRadius
-        });
-        player.bombCount++;
+            return bg.c === g.c && bg.r === g.r;
+        })) {
+            bombs.push({ x: bx, y: by, timer: 3000, range: player.blastRadius });
+            player.bombCount++;
+        }
     }
 
-    function explodeBomb(index) {
-        const bomb = bombs[index];
-        const center = getGridPos(bomb.x, bomb.y);
-        
-        bombs.splice(index, 1);
+    function explodeBomb(idx) {
+        const b = bombs[idx];
+        const g = getGridPos(b.x, b.y);
+        bombs.splice(idx, 1);
         player.bombCount--;
 
-        const particles = [{c: center.c, r: center.r}];
-        const dirs = [{dr: -1, dc: 0}, {dr: 1, dc: 0}, {dr: 0, dc: -1}, {dr: 0, dc: 1}];
+        const particles = [{c: g.c, r: g.r}];
+        const dirs = [{dr:-1,dc:0},{dr:1,dc:0},{dr:0,dc:-1},{dr:0,dc:1}];
 
         dirs.forEach(d => {
-            for(let i=1; i<=bomb.range; i++) {
-                const r = center.r + d.dr * i;
-                const c = center.c + d.dc * i;
-                
-                if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) break;
-                
-                const tile = map[r][c];
-                if (tile === TileType.HARD_WALL) break;
-
-                particles.push({c, r});
-
-                if (tile === TileType.SOFT_WALL) {
+            for(let i=1; i<=b.range; i++) {
+                const r = g.r + d.dr * i;
+                const c = g.c + d.dc * i;
+                if(r<0||r>=GRID_ROWS||c<0||c>=GRID_COLS) break;
+                if(map[r][c]===TileType.HARD_WALL) break;
+                particles.push({c,r});
+                if(map[r][c]===TileType.SOFT_WALL) {
                     map[r][c] = TileType.EMPTY;
                     break;
                 }
             }
         });
-
-        explosions.push({
-            particles: particles,
-            timer: 600
-        });
+        explosions.push({ particles, timer: 600 });
     }
 
     function draw() {
+        // Draw Grass
         ctx.fillStyle = COLORS.GRASS;
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-        ctx.font = `${TILE_SIZE * 0.7}px 'Segoe UI Emoji', sans-serif`;
+        
+        ctx.font = `${TILE_SIZE*0.75}px 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Grid & Walls
+        // Draw Map
         for(let r=0; r<GRID_ROWS; r++) {
             for(let c=0; c<GRID_COLS; c++) {
-                const x = c * TILE_SIZE;
-                const y = r * TILE_SIZE;
-                const cx = x + TILE_SIZE/2;
-                const cy = y + TILE_SIZE/2;
+                const x = c*TILE_SIZE, y = r*TILE_SIZE;
+                const cx = x+TILE_SIZE/2, cy = y+TILE_SIZE/2;
 
-                if ((r + c) % 2 === 1) {
+                if ((r+c)%2===1) {
                     ctx.fillStyle = COLORS.GRASS_CHECKER;
-                    ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                    ctx.fillRect(x,y,TILE_SIZE,TILE_SIZE);
                 }
-
+                
                 if (map[r][c] === TileType.HARD_WALL) {
                     ctx.fillStyle = COLORS.HARD_WALL_BG;
-                    ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+                    ctx.fillRect(x,y,TILE_SIZE,TILE_SIZE);
                     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                    ctx.fillRect(x, y, TILE_SIZE, 4); 
+                    ctx.fillRect(x,y,TILE_SIZE,4);
                     ctx.fillStyle = 'white';
-                    ctx.fillText(EMOJIS.HARD_WALL, cx, cy + 2);
-                } 
-                else if (map[r][c] === TileType.SOFT_WALL) {
+                    ctx.fillText(EMOJIS.HARD_WALL, cx, cy);
+                } else if (map[r][c] === TileType.SOFT_WALL) {
                     ctx.fillStyle = COLORS.SOFT_WALL_BG;
-                    ctx.fillRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+                    ctx.fillRect(x+2,y+2,TILE_SIZE-4,TILE_SIZE-4);
                     ctx.fillStyle = 'white';
-                    ctx.fillText(EMOJIS.SOFT_WALL, cx, cy + 2);
+                    ctx.fillText(EMOJIS.SOFT_WALL, cx, cy);
                 }
             }
         }
 
-        // Bombs
+        // Draw Bombs
         bombs.forEach(b => {
-            const scale = 1 + Math.sin(Date.now() / 150) * 0.1;
+            const s = 1 + Math.sin(Date.now()/150)*0.1;
             ctx.save();
             ctx.translate(b.x, b.y);
-            ctx.scale(scale, scale);
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath();
-            ctx.ellipse(0, 10, 12, 5, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'white';
-            ctx.fillText(EMOJIS.BOMB, 0, 4);
+            ctx.scale(s, s);
+            ctx.fillText(EMOJIS.BOMB, 0, 0);
             ctx.restore();
         });
 
-        // Explosions
-        explosions.forEach(exp => {
-            ctx.globalAlpha = Math.max(0, exp.timer / 300); 
-            exp.particles.forEach(p => {
-                ctx.fillText(EMOJIS.FIRE, p.c * TILE_SIZE + TILE_SIZE/2, p.r * TILE_SIZE + TILE_SIZE/2 + 2);
+        // Draw Explosions
+        explosions.forEach(e => {
+            ctx.globalAlpha = Math.max(0, e.timer/300);
+            e.particles.forEach(p => {
+                ctx.fillText(EMOJIS.FIRE, p.c*TILE_SIZE+TILE_SIZE/2, p.r*TILE_SIZE+TILE_SIZE/2);
             });
-            ctx.globalAlpha = 1.0;
+            ctx.globalAlpha = 1;
         });
 
-        // Enemies
+        // Draw Enemies
         enemies.forEach(e => {
             ctx.save();
             ctx.translate(e.x, e.y);
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath();
-            ctx.ellipse(0, 14, 14, 6, 0, 0, Math.PI * 2);
-            ctx.fill();
-            if (e.dir.x < 0) ctx.scale(-1, 1);
-            ctx.fillStyle = 'white';
-            ctx.fillText(EMOJIS.ENEMY, 0, 4);
+            if(e.dir.x<0) ctx.scale(-1,1);
+            ctx.fillText(EMOJIS.ENEMY, 0, 0);
             ctx.restore();
         });
 
-        // Player
+        // Draw Player
         if (player.alive && gameStatus === GameStatus.PLAYING) {
-            ctx.save();
-            ctx.translate(player.x, player.y);
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath();
-            ctx.ellipse(0, 14, 14, 6, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = 'white';
-            ctx.fillText(EMOJIS.PLAYER, 0, 4);
-            ctx.restore();
+            ctx.fillText(EMOJIS.PLAYER, player.x, player.y);
         }
     }
 
-    function gameLoop(time) {
+    function loop(time) {
         const dt = time - lastTime;
         lastTime = time;
-        if (dt < 1000) {
-             update(dt);
-             draw();
+        if(dt < 1000) {
+            update(dt);
+            draw();
         }
-        requestAnimationFrame(gameLoop);
+        requestAnimationFrame(loop);
     }
-
+    
     lastTime = performance.now();
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
+
+    // Initial draw to avoid green flash
+    map = createEmptyMap();
+    function createEmptyMap() {
+        const m = [];
+        for(let r=0;r<GRID_ROWS;r++) {
+            const row=[];
+            for(let c=0;c<GRID_COLS;c++) row.push((r===0||r===GRID_ROWS-1||c===0||c===GRID_COLS-1||(r%2===0&&c%2===0))?1:0);
+            m.push(row);
+        }
+        return m;
+    }
+    draw();
 
 </script>
 </body>
